@@ -33,23 +33,26 @@ def get_repo_from_git() -> tuple[str | None, str | None]:
     return match.group(1), match.group(2).removesuffix(".git")
 
 
-def fetch_github_contributors(owner: str, repo: str, token: str | None = None) -> list[dict]:
-    contributors: list[dict] = []
-    page = 1
+def github_request(url: str, token: str | None = None) -> object:
     headers = {
         "Accept": "application/vnd.github+json",
         "User-Agent": "diffusion-zero-to-hero-contributors",
     }
     if token:
         headers["Authorization"] = f"Bearer {token}"
+    request = urllib.request.Request(url, headers=headers)
+    with urllib.request.urlopen(request, timeout=30) as response:
+        return json.loads(response.read().decode())
+
+
+def fetch_github_contributors(owner: str, repo: str, token: str | None = None) -> list[dict]:
+    contributors: list[dict] = []
+    page = 1
 
     while True:
         url = f"https://api.github.com/repos/{owner}/{repo}/contributors?per_page=100&page={page}"
-        request = urllib.request.Request(url, headers=headers)
-        with urllib.request.urlopen(request, timeout=30) as response:
-            batch = json.loads(response.read().decode())
-
-        if not batch:
+        batch = github_request(url, token)
+        if not isinstance(batch, list) or not batch:
             break
 
         contributors.extend(batch)
@@ -60,30 +63,99 @@ def fetch_github_contributors(owner: str, repo: str, token: str | None = None) -
     return contributors
 
 
-def fetch_git_contributors() -> list[dict]:
+def fetch_contributors_from_commits(owner: str, repo: str, token: str | None = None) -> list[dict]:
+    """Collect GitHub-linked authors from commit metadata."""
+    counts: dict[str, dict] = {}
+    page = 1
+
+    while True:
+        url = f"https://api.github.com/repos/{owner}/{repo}/commits?per_page=100&page={page}"
+        batch = github_request(url, token)
+        if not isinstance(batch, list) or not batch:
+            break
+
+        for commit in batch:
+            author = commit.get("author")
+            if not author or author.get("type") != "User":
+                continue
+            login = author["login"]
+            if login in BOT_LOGINS:
+                continue
+            if login not in counts:
+                counts[login] = {
+                    "login": login,
+                    "html_url": author.get("html_url", f"https://github.com/{login}"),
+                    "avatar_url": author.get("avatar_url", f"https://github.com/{login}.png?size=100"),
+                    "contributions": 0,
+                    "type": "User",
+                }
+            counts[login]["contributions"] += 1
+
+        if len(batch) < 100:
+            break
+        page += 1
+
+    return sorted(counts.values(), key=lambda item: item["contributions"], reverse=True)
+
+
+def fetch_repo_owner(owner: str, repo: str, token: str | None = None) -> dict | None:
+    data = github_request(f"https://api.github.com/repos/{owner}/{repo}", token)
+    if not isinstance(data, dict):
+        return None
+    owner_info = data.get("owner")
+    if not isinstance(owner_info, dict):
+        return None
+    return owner_info
+
+
+def count_git_commits() -> int:
     result = subprocess.run(
-        ["git", "shortlog", "-sn", "--all", "--no-merges"],
+        ["git", "rev-list", "--count", "HEAD"],
         capture_output=True,
         text=True,
         check=True,
         cwd=ROOT,
     )
-    contributors: list[dict] = []
-    for line in result.stdout.strip().splitlines():
-        if not line.strip():
-            continue
-        count, name = re.split(r"\s+", line.strip(), maxsplit=1)
-        login = name.strip()
-        contributors.append(
-            {
-                "login": login,
-                "contributions": int(count),
-                "html_url": f"https://github.com/{login}",
-                "avatar_url": f"https://github.com/{login}.png?size=100",
-                "type": "User",
-            }
-        )
-    return contributors
+    return int(result.stdout.strip())
+
+
+def build_owner_fallback(owner: str, repo: str, token: str | None = None) -> list[dict]:
+    owner_info = fetch_repo_owner(owner, repo, token)
+    if not owner_info:
+        return []
+
+    login = owner_info["login"]
+    return [
+        {
+            "login": login,
+            "html_url": owner_info.get("html_url", f"https://github.com/{login}"),
+            "avatar_url": owner_info.get("avatar_url", f"https://github.com/{login}.png?size=100"),
+            "contributions": count_git_commits(),
+            "type": owner_info.get("type", "User"),
+        }
+    ]
+
+
+def resolve_contributors(owner: str | None, repo: str | None, token: str | None = None) -> list[dict]:
+    if not owner or not repo:
+        return []
+
+    try:
+        contributors = fetch_github_contributors(owner, repo, token)
+        if contributors:
+            return contributors
+
+        contributors = fetch_contributors_from_commits(owner, repo, token)
+        if contributors:
+            return contributors
+
+        return build_owner_fallback(owner, repo, token)
+    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, json.JSONDecodeError) as exc:
+        print(f"GitHub API unavailable ({exc}); falling back to repo owner")
+        try:
+            return build_owner_fallback(owner, repo, token)
+        except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, json.JSONDecodeError):
+            return []
 
 
 def render_contributors(contributors: list[dict]) -> str:
@@ -144,19 +216,8 @@ def update_readme(content: str) -> bool:
 def main() -> None:
     owner, repo = get_repo_from_git()
     token = os.environ.get("GITHUB_TOKEN")
-    contributors: list[dict] = []
-
-    if owner and repo:
-        try:
-            contributors = fetch_github_contributors(owner, repo, token)
-        except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError) as exc:
-            print(f"GitHub API unavailable ({exc}); falling back to git shortlog")
-
-    if not contributors:
-        contributors = fetch_git_contributors()
-
-    changed = update_readme(render_contributors(contributors))
-    raise SystemExit(0 if changed else 0)
+    contributors = resolve_contributors(owner, repo, token)
+    update_readme(render_contributors(contributors))
 
 
 if __name__ == "__main__":

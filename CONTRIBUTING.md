@@ -60,3 +60,12 @@ rg -i "hf_[A-Za-z0-9]{20,}|HF_TOKEN|password|secret|token|/home/" .
 - [ ] 不要手动编辑 `README.md` 中 `<!-- contributors:start -->` 与 `<!-- contributors:end -->` 之间的内容
 
 合并到主分支后，GitHub Actions 会根据贡献记录自动更新 README 中的贡献者列表。
+
+若希望头像和用户名正确显示，请在本机配置与 GitHub 账号关联的 git 信息，例如：
+
+```bash
+git config user.name "HaoyuLi-Nova"
+git config user.email "你的 GitHub 已验证邮箱或 noreply 邮箱"
+```
+
+可在 <https://github.com/settings/emails> 查看可用邮箱。

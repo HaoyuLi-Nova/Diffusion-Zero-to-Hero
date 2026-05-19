@@ -101,13 +101,13 @@ huggingface-cli login
 
 ## 贡献者
 
-感谢每一位帮助完善本课程的朋友。下方列表会根据 GitHub 贡献记录自动更新；每次合并到 `master`/`main` 分支后，[GitHub Actions](.github/workflows/update-contributors.yml) 会刷新 `README.md` 中的贡献者区块。
+感谢每一位帮助完善本课程的朋友。下方列表会根据 GitHub 贡献记录自动更新；每次合并到 `master`/`main` 分支后，[GitHub Actions](.github/workflows/update-contributors.yml) 会刷新 `README.md` 中的贡献者区块。若本地 git 用户名与 GitHub 账号不一致，列表会优先展示仓库 owner，直到提交邮箱与 GitHub 账号正确关联。
 
 <!-- contributors:start -->
 <p align="center">
   <table>
     <tr>
-      <td align="center"><a href="https://github.com/lhy"><img src="https://github.com/lhy.png?size=100" width="100px;" alt="lhy"/><br /><sub><b>lhy</b></sub></a><br /><sub>1 commits</sub></td>
+      <td align="center"><a href="https://github.com/HaoyuLi-Nova"><img src="https://avatars.githubusercontent.com/u/154648924?v=4" width="100px;" alt="HaoyuLi-Nova"/><br /><sub><b>HaoyuLi-Nova</b></sub></a><br /><sub>2 commits</sub></td>
     </tr>
   </table>
 </p>
