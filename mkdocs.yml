@@ -1,0 +1,68 @@
+site_name: Diffusion Zero to Hero
+site_description: >-
+  Chinese hands-on course for learning diffusion models: DDPM, DDIM, Diffusers,
+  Stable Diffusion, CFG, LoRA, ControlNet, SDXL, DiT, Flow Matching, video generation.
+site_url: https://haoyuli-nova.github.io/Diffusion-Zero-to-Hero/
+repo_url: https://github.com/HaoyuLi-Nova/Diffusion-Zero-to-Hero
+repo_name: HaoyuLi-Nova/Diffusion-Zero-to-Hero
+edit_uri: edit/master/docs/
+
+use_directory_urls: true
+
+theme:
+  name: material
+  language: en
+  palette:
+    - scheme: default
+      primary: deep purple
+      accent: amber
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: deep purple
+      accent: amber
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - search.suggest
+    - content.code.copy
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - How to Learn:
+      - Learning Path (EN): how-to-learn-diffusion-models.md
+      - 学习路线 (中文): learning-path.md
+  - Concepts:
+      - DDPM Explained: ddpm-explained.md
+      - DDIM Explained: ddim-explained.md
+      - Stable Diffusion Explained: stable-diffusion-explained.md
+      - Classifier-Free Guidance: classifier-free-guidance-explained.md
+      - LoRA and ControlNet: lora-controlnet.md
+  - Modern Roadmap: modern-diffusion-roadmap.md
+  - Guides:
+      - Glossary: glossary.md
+      - Troubleshooting: troubleshooting.md
+      - Assets: assets.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/HaoyuLi-Nova/Diffusion-Zero-to-Hero

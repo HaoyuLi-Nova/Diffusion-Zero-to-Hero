@@ -1,8 +1,28 @@
-# Diffusion Zero to Hero 中文实战课
+# Diffusion Models from Zero to Hero | 中文扩散模型实战教程
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE) &nbsp;
 [![Made with Jupyter](https://img.shields.io/badge/Made%20with-Jupyter-red?style=flat-square&logo=Jupyter)](https://jupyter.org/try) &nbsp;
-![PyTorch](https://img.shields.io/badge/PyTorch-%23EE4C2C.svg?style=flat-square&logo=PyTorch&logoColor=white)
+![PyTorch](https://img.shields.io/badge/PyTorch-%23EE4C2C.svg?style=flat-square&logo=PyTorch&logoColor=white) &nbsp;
+[![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://haoyuli-nova.github.io/Diffusion-Zero-to-Hero/)
+
+**English:** A Chinese hands-on course for learning diffusion models from scratch, covering DDPM, DDIM, Hugging Face Diffusers, Stable Diffusion, classifier-free guidance, LoRA, ControlNet, SDXL, DiT, Flow Matching, and video generation.
+
+**中文：** 本仓库是一个中文扩散模型实战课程，适合希望系统学习 diffusion models / Stable Diffusion / generative AI 的中文读者。课程文档站：[Diffusion Zero to Hero Docs](https://haoyuli-nova.github.io/Diffusion-Zero-to-Hero/)。
+
+## FAQ: How should I learn diffusion models?
+
+If you are new to diffusion models, follow this path:
+
+1. Start with [Unit 0](unit0/README.md) to understand prerequisites.
+2. Study DDPM and the forward/reverse diffusion process in [Unit 1](unit1/README.md).
+3. Learn training objectives, schedulers, and sampling.
+4. Move to guidance, conditioning, and fine-tuning in [Unit 2](unit2/README.md).
+5. Study Stable Diffusion components: VAE, U-Net, CLIP text encoder, and cross-attention in [Unit 3](unit3/README.md).
+6. Continue with DDIM inversion, audio diffusion, LoRA, ControlNet, SDXL, DiT, Flow Matching, and video generation in [Unit 4](unit4/README.md) and the [modern roadmap](docs/modern-diffusion-roadmap.md).
+
+For a detailed English roadmap, see [How to Learn Diffusion Models](docs/how-to-learn-diffusion-models.md). For Chinese learners, see [学习路线](docs/learning-path.md).
+
+---
 
 这是一个**非官方**的中文实战课程，基于 [Hugging Face Diffusion Models Course](https://github.com/huggingface/diffusion-models-class) 制作。课程以“从零到进阶”为主线，保留原课程的核心实践，并补充中文导读、术语说明、运行排查与现代扩展路线，方便中文读者系统学习图像生成、音频生成、视频生成与扩散模型。
 
@@ -49,7 +69,7 @@ huggingface-cli login
 | 个性化项目 | [hackathon](hackathon/README.md) | 使用 DreamBooth 学习少样本个性化微调 |
 | 现代路线 | [docs/modern-diffusion-roadmap.md](docs/modern-diffusion-roadmap.md) | 衔接 LoRA、ControlNet、SDXL、视频生成等后续主题 |
 
-更详细的学习顺序见 [docs/learning-path.md](docs/learning-path.md)。
+更详细的学习顺序见 [docs/learning-path.md](docs/learning-path.md)。英文概念导读见 [文档站](https://haoyuli-nova.github.io/Diffusion-Zero-to-Hero/) 或 [docs/how-to-learn-diffusion-models.md](docs/how-to-learn-diffusion-models.md)。
 
 ## 课程大纲
 
@@ -101,23 +121,7 @@ huggingface-cli login
 
 ## 贡献者
 
-感谢每一位帮助完善本课程的朋友。下方列表会根据 GitHub 贡献记录自动更新；每次合并到 `master`/`main` 分支后，[GitHub Actions](.github/workflows/update-contributors.yml) 会刷新 `README.md` 中的贡献者区块。若本地 git 用户名与 GitHub 账号不一致，列表会优先展示仓库 owner，直到提交邮箱与 GitHub 账号正确关联。
-
-<!-- contributors:start -->
-<p align="center">
-  <table>
-    <tr>
-      <td align="center"><a href="https://github.com/HaoyuLi-Nova"><img src="https://avatars.githubusercontent.com/u/154648924?v=4" width="100px;" alt="HaoyuLi-Nova"/><br /><sub><b>HaoyuLi-Nova</b></sub></a><br /><sub>2 commits</sub></td>
-    </tr>
-  </table>
-</p>
-<!-- contributors:end -->
-
-<p align="center">
-  <a href="https://github.com/HaoyuLi-Nova/Diffusion-Zero-to-Hero/graphs/contributors">
-    <img src="https://contrib.rocks/image?repo=HaoyuLi-Nova/Diffusion-Zero-to-Hero&columns=8" alt="Contributors" />
-  </a>
-</p>
+感谢每一位帮助完善本课程的朋友。下方列表会根据 GitHub 贡献记录自动更新；每次合并到 `master`/`main` 分支后，[GitHub Actions](.github/workflows/update-contributors.yml) 会刷新 `README.md` 中的贡献者区块。
 
 ## 许可证
 

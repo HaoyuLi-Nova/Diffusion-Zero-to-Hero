@@ -1,0 +1,19 @@
+name: 入门贡献建议
+description: 翻译修正、文档改进、运行说明等小改动
+title: "[good first issue] "
+labels: ["good first issue", "documentation"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢你愿意贡献！适合第一次 PR 的任务示例：
+        - 修正某个 notebook 或 README 的错别字/术语
+        - 补充 `docs/troubleshooting.md` 中的一条显存或安装问题
+        - 为 `images/` 补充缺失配图说明
+  - type: textarea
+    id: task
+    attributes:
+      label: 你想改进什么？
+      placeholder: 例如：unit3 README 中 CFG 说明需要补充中文术语
+    validations:
+      required: true

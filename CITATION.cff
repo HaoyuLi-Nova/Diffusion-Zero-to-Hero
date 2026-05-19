@@ -1,0 +1,24 @@
+cff-version: 1.2.0
+message: "If you use this course, please cite it as below."
+title: "Diffusion Zero to Hero: A Chinese Hands-on Course for Diffusion Models"
+authors:
+  - family-names: Li
+    given-names: Haoyu
+repository-code: "https://github.com/HaoyuLi-Nova/Diffusion-Zero-to-Hero"
+url: "https://github.com/HaoyuLi-Nova/Diffusion-Zero-to-Hero"
+license: Apache-2.0
+keywords:
+  - diffusion models
+  - stable diffusion
+  - diffusers
+  - generative AI
+  - Chinese tutorial
+  - DDPM
+  - DDIM
+  - classifier-free guidance
+  - ControlNet
+  - LoRA
+  - SDXL
+  - DiT
+  - flow matching
+  - video generation

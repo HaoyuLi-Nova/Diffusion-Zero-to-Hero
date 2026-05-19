@@ -9,7 +9,7 @@ __pycache__/
 *$py.class
 .pytest_cache/
 .mypy_cache/
-
+data/
 # Virtual environments
 .venv/
 venv/
@@ -35,6 +35,9 @@ logs/
 *.safetensors
 *.bin
 *.onnx
+
+# MkDocs build output
+site/
 
 # OS/editor noise
 .DS_Store

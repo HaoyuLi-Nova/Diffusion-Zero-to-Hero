@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 学习路线与文档站
+    url: https://haoyuli-nova.github.io/Diffusion-Zero-to-Hero/
+    about: 查看如何学习扩散模型与课程单元索引
+  - name: 上游 Hugging Face 课程
+    url: https://github.com/huggingface/diffusion-models-class/issues
+    about: 英文原课程逻辑或内容问题可先查上游
