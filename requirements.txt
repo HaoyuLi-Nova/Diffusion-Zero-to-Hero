@@ -1,0 +1,26 @@
+# Core notebook stack
+jupyter
+ipywidgets
+tqdm
+matplotlib
+numpy
+pillow
+requests
+
+# PyTorch and vision/audio utilities
+torch
+torchvision
+torchaudio
+
+# Hugging Face ecosystem
+accelerate
+datasets
+diffusers
+huggingface_hub
+transformers
+
+# Training, demos, and course utilities
+fastcore
+gradio
+open_clip_torch
+wandb

@@ -1,0 +1,24 @@
+Diffusion Zero to Hero 中文实战课
+
+This repository is a non-official Chinese learning version derived from:
+
+  Hugging Face Diffusion Models Course
+  https://github.com/huggingface/diffusion-models-class
+
+The upstream project is distributed under the Apache License, Version 2.0.
+This repository keeps that license and adds Chinese translations, localized
+README files, learning guides, and release-readiness documentation for Chinese
+readers.
+
+This repository is not maintained, sponsored, or endorsed by Hugging Face.
+Hugging Face, Diffusers, and related product names are trademarks or product
+names of their respective owners. They are used only to describe the origin
+and context of the educational materials.
+
+Unless otherwise stated, newly added Chinese documentation and maintenance
+materials in this repository are also made available under the Apache License,
+Version 2.0.
+
+Image assets, paper figures, model names, and linked external resources may
+have their own copyright or license terms. Keep the original attribution and
+source links when reusing or redistributing them.
