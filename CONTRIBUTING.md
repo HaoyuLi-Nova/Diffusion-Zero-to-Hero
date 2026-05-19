@@ -57,3 +57,6 @@ rg -i "hf_[A-Za-z0-9]{20,}|HF_TOKEN|password|secret|token|/home/" .
 - [ ] 新增图片放在 `images/`，并保留来源说明
 - [ ] 新增依赖已写入 `requirements.txt` 或对应文档
 - [ ] 涉及上游内容时已保留来源链接与许可证说明
+- [ ] 不要手动编辑 `README.md` 中 `<!-- contributors:start -->` 与 `<!-- contributors:end -->` 之间的内容
+
+合并到主分支后，GitHub Actions 会根据贡献记录自动更新 README 中的贡献者列表。

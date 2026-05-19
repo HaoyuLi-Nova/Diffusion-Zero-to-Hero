@@ -99,6 +99,26 @@ huggingface-cli login
 
 提交前请阅读 [CONTRIBUTING.md](CONTRIBUTING.md)，并确认没有提交 token、私有数据或大模型权重。
 
+## 贡献者
+
+感谢每一位帮助完善本课程的朋友。下方列表会根据 GitHub 贡献记录自动更新；每次合并到 `master`/`main` 分支后，[GitHub Actions](.github/workflows/update-contributors.yml) 会刷新 `README.md` 中的贡献者区块。
+
+<!-- contributors:start -->
+<p align="center">
+  <table>
+    <tr>
+      <td align="center"><a href="https://github.com/lhy"><img src="https://github.com/lhy.png?size=100" width="100px;" alt="lhy"/><br /><sub><b>lhy</b></sub></a><br /><sub>1 commits</sub></td>
+    </tr>
+  </table>
+</p>
+<!-- contributors:end -->
+
+<p align="center">
+  <a href="https://github.com/HaoyuLi-Nova/Diffusion-Zero-to-Hero/graphs/contributors">
+    <img src="https://contrib.rocks/image?repo=HaoyuLi-Nova/Diffusion-Zero-to-Hero&columns=8" alt="Contributors" />
+  </a>
+</p>
+
 ## 许可证
 
 本仓库基于 Apache License 2.0 发布。原课程版权与贡献者权益归原作者和贡献者所有；本课程新增的中文文档与维护材料同样按 Apache License 2.0 提供，除非文件中另有说明。
