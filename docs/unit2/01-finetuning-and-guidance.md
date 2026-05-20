@@ -1,0 +1,740 @@
+<!-- This page is generated from the matching notebook by scripts/notebook_to_docs.py. -->
+
+> 原始 Notebook：[unit2/01_finetuning_and_guidance.ipynb](https://github.com/HaoyuLi-Nova/Diffusion-Zero-to-Hero/blob/master/unit2/01_finetuning_and_guidance.ipynb)
+
+# 微调与引导（Guidance）
+在本笔记本中，我们将介绍两种主要的、用于改造现有扩散模型的方法：
+* 通过**微调（fine-tuning）**，在新数据上重新训练现有模型，以改变其输出的类型
+* 通过**引导（guidance）**，在推理时操控生成过程，从而获得额外的控制能力
+## 你将学到什么
+学完本笔记本后，你将能够：
+- 创建采样循环，并使用新的调度器更快地生成样本
+- 在新数据上微调现有的扩散模型，包括：
+  - 使用梯度累积（gradient accumulation）缓解小批量训练的一些问题
+  - 在训练过程中将样本记录到 [Weights and Biases](https://wandb.ai/site)，以监控训练进展（通过配套的示例脚本）
+  - 保存生成的管道（pipeline）并上传到 Hub
+- 使用额外的损失函数引导采样过程，从而对现有模型施加控制，包括：
+  - 用简单的基于颜色的损失探索不同的引导方法
+  - 使用 CLIP 根据文本提示词引导生成
+  - 使用 Gradio 和 🤗 Spaces 分享自定义采样循环
+❓如有任何问题，请在 Hugging Face Discord 服务器的 `#diffusion-models-class` 频道中提问。如果你还没有注册，可以通过以下链接加入：https://huggingface.co/join/discord
+
+## 环境准备与导入
+若要将微调后的模型保存到 Hugging Face Hub，你需要使用具有**写入权限**的 token 登录。下面的代码会提示你完成登录，并链接到你账户中相应的 token 页面。如果你希望在模型训练时通过训练脚本记录样本，还需要一个 Weights and Biases 账户——同样，代码会在需要时提示你登录。
+除此之外，只需安装少量依赖、导入所需模块，并指定要使用的设备：
+
+```python
+%pip install -qq diffusers datasets accelerate wandb open-clip-torch
+```
+
+```python
+# Code to log in to the Hugging Face Hub, needed for sharing models
+# Make sure you use a token with WRITE access
+from huggingface_hub import notebook_login
+
+notebook_login()
+```
+
+```python
+import numpy as np
+import torch
+import torch.nn.functional as F
+import torchvision
+from datasets import load_dataset
+from diffusers import DDIMScheduler, DDPMPipeline
+from matplotlib import pyplot as plt
+from PIL import Image
+from torchvision import transforms
+from tqdm.auto import tqdm
+```
+
+```python
+device = (
+    "mps"
+    if torch.backends.mps.is_available()
+    else "cuda"
+    if torch.cuda.is_available()
+    else "cpu"
+)
+```
+
+## 加载预训练管道
+让我们从加载一个现有管道开始，看看它能做什么：
+
+```python
+image_pipe = DDPMPipeline.from_pretrained("google/ddpm-celebahq-256")
+image_pipe.to(device);
+```
+
+生成图像非常简单：像调用函数一样运行管道的 [`__call__`](https://github.com/huggingface/diffusers/blob/main/src/diffusers/pipelines/ddpm/pipeline_ddpm.py#L42) 方法即可：
+
+```python
+images = image_pipe().images
+images[0]
+```
+
+不错，但太慢了！在进入今天的主题之前，我们先看看实际的采样循环，以及如何用更高级的采样器来加速：
+
+## 使用 DDIM 加速采样
+在每一步中，模型接收带噪输入，并被要求预测噪声（从而估计完全去噪后的图像可能是什么样子）。起初这些预测并不理想，因此我们将过程拆分为许多步。然而，研究发现使用 1000+ 步并非必要，近期大量研究探索了如何用尽可能少的步数获得高质量样本。
+
+在 🤗 Diffusers 库中，这些**采样方法由调度器（scheduler）处理**，每一步更新都必须通过 `step()` 函数完成。要生成图像，我们从随机噪声 $x$ 开始。然后，对于调度器噪声时间表中的每个时间步，我们将带噪输入 $x$ 送入模型，并将得到的预测传给 `step()` 函数。该函数返回带有 `prev_sample` 属性的输出——之所以叫「前一个」，是因为我们沿时间**反向**从强噪声走向弱噪声（与正向扩散过程相反）。
+让我们动手实践！首先加载一个调度器，这里使用基于论文 [Denoising Diffusion Implicit Models](https://arxiv.org/abs/2010.02502) 的 DDIMScheduler，它能在比原始 DDPM 实现少得多的步数内给出不错的样本：
+
+```python
+# Create new scheduler and set num inference steps
+scheduler = DDIMScheduler.from_pretrained("google/ddpm-celebahq-256")
+scheduler.set_timesteps(num_inference_steps=40)
+```
+
+可以看到，该模型总共执行 40 步，每一步相当于原始 1000 步时间表中的 25 步：
+
+```python
+scheduler.timesteps
+```
+
+让我们创建 4 张随机图像并运行采样循环，在过程中同时查看当前的 $x$ 和预测的去噪版本：
+
+```python
+# The random starting point
+x = torch.randn(4, 3, 256, 256).to(device)  # Batch of 4, 3-channel 256 x 256 px images
+
+# Loop through the sampling timesteps
+for i, t in tqdm(enumerate(scheduler.timesteps)):
+
+    # Prepare model input
+    model_input = scheduler.scale_model_input(x, t)
+
+    # Get the prediction
+    with torch.no_grad():
+        noise_pred = image_pipe.unet(model_input, t)["sample"]
+
+    # Calculate what the updated sample should look like with the scheduler
+    scheduler_output = scheduler.step(noise_pred, t, x)
+
+    # Update x
+    x = scheduler_output.prev_sample
+
+    # Occasionally display both x and the predicted denoised images
+    if i % 10 == 0 or i == len(scheduler.timesteps) - 1:
+        fig, axs = plt.subplots(1, 2, figsize=(12, 5))
+
+        grid = torchvision.utils.make_grid(x, nrow=4).permute(1, 2, 0)
+        axs[0].imshow(grid.cpu().clip(-1, 1) * 0.5 + 0.5)
+        axs[0].set_title(f"Current x (step {i})")
+
+        pred_x0 = (
+            scheduler_output.pred_original_sample
+        )  # Not available for all schedulers
+        grid = torchvision.utils.make_grid(pred_x0, nrow=4).permute(1, 2, 0)
+        axs[1].imshow(grid.cpu().clip(-1, 1) * 0.5 + 0.5)
+        axs[1].set_title(f"Predicted denoised images (step {i})")
+        plt.show()
+```
+
+如你所见，初始预测并不理想，但随着过程推进，预测输出越来越精细。若好奇 `step()` 函数内部的数学原理，可以查看（注释详尽的）源码：
+
+```python
+# ??scheduler.step
+```
+
+你也可以用这个新调度器替换管道自带的原始调度器，然后像这样采样：
+
+```python
+image_pipe.scheduler = scheduler
+images = image_pipe(num_inference_steps=40).images
+images[0]
+```
+
+好了——我们现在可以在合理的时间内得到样本了！这应该能加快本笔记本后续部分的进度 :）
+
+## 微调
+现在进入有趣的部分！给定这个预训练管道，我们如何在新训练数据上重新训练模型以生成新图像？
+事实证明，这与从零开始训练模型几乎相同（如我们在 [第一单元](https://github.com/huggingface/diffusion-models-class/tree/main/unit1) 中所见），区别在于我们从现有模型出发。让我们动手实践，并在此过程中讨论几个额外的注意事项。
+
+首先是数据集：你可以尝试[这个复古人脸数据集](https://huggingface.co/datasets/Norod78/Vintage-Faces-FFHQAligned)或[这些动漫人脸](https://huggingface.co/datasets/huggan/anime-faces)，它们更接近此人脸模型的原始训练数据；不过为了好玩，我们改用第一单元中从零训练时使用的同一个小型蝴蝶数据集。运行下面的代码下载蝴蝶数据集，并创建可从中采样一批图像的 dataloader：
+
+```python
+# @markdown load and prepare a dataset:
+# Not on Colab? Comments with #@ enable UI tweaks like headings or user inputs
+# but can safely be ignored if you're working on a different platform.
+
+dataset_name = "huggan/smithsonian_butterflies_subset"  # @param
+dataset = load_dataset(dataset_name, split="train")
+image_size = 256  # @param
+batch_size = 4  # @param
+preprocess = transforms.Compose(
+    [
+        transforms.Resize((image_size, image_size)),
+        transforms.RandomHorizontalFlip(),
+        transforms.ToTensor(),
+        transforms.Normalize([0.5], [0.5]),
+    ]
+)
+
+
+def transform(examples):
+    images = [preprocess(image.convert("RGB")) for image in examples["image"]]
+    return {"images": images}
+
+
+dataset.set_transform(transform)
+
+train_dataloader = torch.utils.data.DataLoader(
+    dataset, batch_size=batch_size, shuffle=True
+)
+
+print("Previewing batch:")
+batch = next(iter(train_dataloader))
+grid = torchvision.utils.make_grid(batch["images"], nrow=4)
+plt.imshow(grid.permute(1, 2, 0).cpu().clip(-1, 1) * 0.5 + 0.5);
+```
+
+**注意事项 1：** 此处的批量大小（4）相当小，因为我们在较大图像尺寸（256px）下使用相当大的模型进行训练，批量过大将导致 GPU 显存不足。你可以减小图像尺寸以加快训练并允许更大批量，但这些模型是为 256px 生成而设计和原始训练的。
+
+接下来是训练循环。我们将优化目标设为 `image_pipe.unet.parameters()`，从而更新预训练模型的权重。其余部分与第一单元的示例训练循环几乎相同。在 Colab 上大约需要 10 分钟，现在是泡杯咖啡或茶的好时候：
+
+```python
+num_epochs = 2  # @param
+lr = 1e-5  # @param
+grad_accumulation_steps = 2  # @param
+
+optimizer = torch.optim.AdamW(image_pipe.unet.parameters(), lr=lr)
+
+losses = []
+
+for epoch in range(num_epochs):
+    for step, batch in tqdm(enumerate(train_dataloader), total=len(train_dataloader)):
+        clean_images = batch["images"].to(device)
+        # Sample noise to add to the images
+        noise = torch.randn(clean_images.shape).to(clean_images.device)
+        bs = clean_images.shape[0]
+
+        # Sample a random timestep for each image
+        timesteps = torch.randint(
+            0,
+            image_pipe.scheduler.num_train_timesteps,
+            (bs,),
+            device=clean_images.device,
+        ).long()
+
+        # Add noise to the clean images according to the noise magnitude at each timestep
+        # (this is the forward diffusion process)
+        noisy_images = image_pipe.scheduler.add_noise(clean_images, noise, timesteps)
+
+        # Get the model prediction for the noise
+        noise_pred = image_pipe.unet(noisy_images, timesteps, return_dict=False)[0]
+
+        # Compare the prediction with the actual noise:
+        loss = F.mse_loss(
+            noise_pred, noise
+        )  # NB - trying to predict noise (eps) not (noisy_ims-clean_ims) or just (clean_ims)
+
+        # Store for later plotting
+        losses.append(loss.item())
+
+        # Update the model parameters with the optimizer based on this loss
+        loss.backward(loss)
+
+        # Gradient accumulation:
+        if (step + 1) % grad_accumulation_steps == 0:
+            optimizer.step()
+            optimizer.zero_grad()
+
+    print(
+        f"Epoch {epoch} average loss: {sum(losses[-len(train_dataloader):])/len(train_dataloader)}"
+    )
+
+# Plot the loss curve:
+plt.plot(losses)
+```
+
+**注意事项 2：** 我们的损失信号极其嘈杂，因为每一步只在四个样本的随机噪声水平上训练。这对训练并不理想。一种修复方法是使用极低的学习率，限制每步更新的幅度。更好的做法是找到某种方法，在**不**让显存需求暴涨的情况下，获得与使用更大批量相同的好处……
+这就是 [梯度累积](https://www.kozodoi.me/blog/gradient-accumulation-in-pytorch) 的用武之地。如果在运行 `optimizer.step()` 和 `optimizer.zero_grad()` 之前多次调用 `loss.backward()`，PyTorch 会累积（求和）梯度，有效合并多个批次的信号，从而给出单一（更优）的估计，再用于更新参数。这会导致总更新次数减少，就像使用了更大批量一样。许多框架会替你处理（例如，[🤗 Accelerate 让这变得很简单](https://huggingface.co/docs/accelerate/usage_guides/gradient_accumulation)），但从零实现也很有价值，因为这是应对 GPU 显存限制时的实用技巧！如上面代码所示（`# Gradient accumulation` 注释之后），所需代码其实不多。
+
+```python
+# Exercise: See if you can add gradient accumulation to the training loop in Unit 1.
+# How does it perform? Think how you might adjust the learning rate based on the
+# number of gradient accumulation steps - should it stay the same as before?
+```
+
+**注意事项 3：** 训练仍然很耗时，每个 epoch 打印一行更新不足以让我们了解进展。我们或许应该：
+* 偶尔生成一些样本，在训练过程中定性检查表现
+* 记录损失、生成样本等信息，例如使用 Weights and Biases 或 tensorboard。
+本仓库已保留本地脚本 [`finetune_model.py`](finetune_model.py)，它将上述训练代码与最简日志功能结合，方便直接运行和修改。你可以在下方查看[某次训练运行的日志](https://wandb.ai/johnowhitaker/dm_finetune/runs/2upaa341)：
+
+```python
+%wandb johnowhitaker/dm_finetune/2upaa341 # You'll need a W&B account for this to work - skip if you don't want to log in
+```
+
+观察生成样本随训练进展的变化很有趣——尽管损失似乎改善不大，我们能看到模型从原始领域（卧室图像）逐渐转向新训练数据（wikiart）。本笔记本末尾有使用此脚本微调模型的注释代码，可作为运行上方单元格的替代方案。
+
+```python
+# Exercise: see if you can modify the official example training script we saw
+# in Unit 1 to begin with a pre-trained model rather than training from scratch.
+# Compare it to the minimal script linked above - what extra features is the minimal script missing?
+```
+
+用该模型生成一些图像，可以看到这些人脸已经变得相当奇怪了！
+
+```python
+# @markdown Generate and plot some images:
+x = torch.randn(8, 3, 256, 256).to(device)  # Batch of 8
+for i, t in tqdm(enumerate(scheduler.timesteps)):
+    model_input = scheduler.scale_model_input(x, t)
+    with torch.no_grad():
+        noise_pred = image_pipe.unet(model_input, t)["sample"]
+    x = scheduler.step(noise_pred, t, x).prev_sample
+grid = torchvision.utils.make_grid(x, nrow=4)
+plt.imshow(grid.permute(1, 2, 0).cpu().clip(-1, 1) * 0.5 + 0.5);
+```
+
+**注意事项 4：** 微调可能相当不可预测！若训练更久，或许能看到完美的蝴蝶。但中间步骤本身也可能非常有趣，尤其当你的兴趣更偏向艺术方向时！尝试极短或极长的训练时间，并调整学习率，观察这如何影响最终模型的输出类型。
+
+### 使用我们在 WikiArt 演示模型上使用的最简示例脚本进行微调的代码
+若你想训练一个与我在 WikiArt 上制作的类似的模型，可以取消注释并运行下面的单元格。由于耗时较长且可能耗尽 GPU 显存，建议在完成本笔记本其余部分**之后**再运行。
+
+```python
+## The fine-tuning script is included locally as unit2/finetune_model.py.
+```
+
+```python
+## To run the script, training the face model on some vintage faces
+## (ideally run this in a terminal):
+# !python finetune_model.py --image_size 128 --batch_size 8 --num_epochs 16\
+#     --grad_accumulation_steps 2 --start_model "google/ddpm-celebahq-256"\
+#     --dataset_name "Norod78/Vintage-Faces-FFHQAligned" --wandb_project 'dm-finetune'\
+#     --log_samples_every 100 --save_model_every 1000 --model_save_name 'vintageface'
+```
+
+### 保存与加载微调后的管道
+既然我们已经微调了扩散模型中的 U-Net，让我们将其保存到本地文件夹，运行：
+
+```python
+image_pipe.save_pretrained("my-finetuned-model")
+```
+
+如第一单元所见，这将保存 config、model、scheduler：
+
+```bash
+!ls {"my-finetuned-model"}
+```
+
+接下来，你可以按照第一单元 [Diffusers 简介](https://github.com/huggingface/diffusion-models-class/blob/main/unit1/01-introduction-to-diffusers.md) 中的相同步骤，将模型推送到 Hub 以供日后使用：
+
+````python
+# @title Upload a locally saved pipeline to the hub
+
+# Code to upload a pipeline saved locally to the hub
+from huggingface_hub import HfApi, ModelCard, create_repo, get_full_repo_name
+
+# Set up repo and upload files
+model_name = "ddpm-celebahq-finetuned-butterflies-2epochs"  # @param What you want it called on the hub
+local_folder_name = "my-finetuned-model"  # @param Created by the script or one you created via image_pipe.save_pretrained('save_name')
+description = "Describe your model here"  # @param
+hub_model_id = get_full_repo_name(model_name)
+create_repo(hub_model_id)
+api = HfApi()
+api.upload_folder(
+    folder_path=f"{local_folder_name}/scheduler", path_in_repo="", repo_id=hub_model_id
+)
+api.upload_folder(
+    folder_path=f"{local_folder_name}/unet", path_in_repo="", repo_id=hub_model_id
+)
+api.upload_file(
+    path_or_fileobj=f"{local_folder_name}/model_index.json",
+    path_in_repo="model_index.json",
+    repo_id=hub_model_id,
+)
+
+# Add a model card (optional but nice!)
+content = f"""
+---
+license: mit
+tags:
+- pytorch
+- diffusers
+- unconditional-image-generation
+- diffusion-models-class
+---
+
+# Example Fine-Tuned Model for Unit 2 of the [Diffusion Models Class 🧨](https://github.com/huggingface/diffusion-models-class)
+
+{description}
+
+## Usage
+
+```python
+from diffusers import DDPMPipeline
+
+pipeline = DDPMPipeline.from_pretrained('{hub_model_id}')
+image = pipeline().images[0]
+image
+```
+"""
+
+card = ModelCard(content)
+card.push_to_hub(hub_model_id)
+````
+
+恭喜，你已经微调了第一个扩散模型！
+在本笔记本的其余部分，我们将使用我从[在 LSUN 卧室上训练的模型](https://huggingface.co/google/ddpm-bedroom-256)微调约一个 epoch 得到的[模型](https://huggingface.co/johnowhitaker/sd-class-wikiart-from-bedrooms)（基于 [WikiArt 数据集](https://huggingface.co/datasets/huggan/wikiart)）。若你愿意，可以跳过此单元格，改用上一节微调的人脸/蝴蝶管道，或从 Hub 加载其他模型：
+
+```python
+# Load the pretrained pipeline
+pipeline_name = "johnowhitaker/sd-class-wikiart-from-bedrooms"
+image_pipe = DDPMPipeline.from_pretrained(pipeline_name).to(device)
+
+# Sample some images with a DDIM Scheduler over 40 steps
+scheduler = DDIMScheduler.from_pretrained(pipeline_name)
+scheduler.set_timesteps(num_inference_steps=40)
+
+# Random starting point (batch of 8 images)
+x = torch.randn(8, 3, 256, 256).to(device)
+
+# Minimal sampling loop
+for i, t in tqdm(enumerate(scheduler.timesteps)):
+    model_input = scheduler.scale_model_input(x, t)
+    with torch.no_grad():
+        noise_pred = image_pipe.unet(model_input, t)["sample"]
+    x = scheduler.step(noise_pred, t, x).prev_sample
+
+# View the results
+grid = torchvision.utils.make_grid(x, nrow=4)
+plt.imshow(grid.permute(1, 2, 0).cpu().clip(-1, 1) * 0.5 + 0.5);
+```
+
+**注意事项 5：** 往往很难判断微调效果如何，而「良好表现」的含义可能因用例而异。例如，若你在小数据集上微调像 Stable Diffusion 这样的文本条件模型，你可能希望它**保留**大部分原始训练，以便理解新数据集中未涵盖的任意提示词，同时**适应**新训练数据的风格。这可能意味着使用较低的学习率，并结合指数模型平均等方法，如[这篇关于制作 Pokémon 版 Stable Diffusion 的精彩博文](https://lambdalabs.com/blog/how-to-fine-tune-stable-diffusion-how-we-made-the-text-to-pokemon-model-at-lambda)所示。在另一种情况下，你可能希望在新数据上完全重新训练模型（如我们的卧室 → wikiart 示例），此时较大的学习率和更多训练更合理。尽管[损失曲线](https://wandb.ai/johnowhitaker/dm_finetune/runs/2upaa341)改善不大，样本清楚地显示出远离原始数据、趋向更「艺术化」输出的变化，尽管它们大多仍不连贯。
+这引出了下一节，我们将探讨如何为此类模型添加额外引导，以更好地控制输出……
+
+## 引导（Guidance）
+若希望对生成的样本施加一些控制怎么办？例如，假设我们想使生成图像偏向某种特定颜色，该怎么做？这就是**引导**——一种在采样过程中添加额外控制的技术。
+
+第一步是创建条件函数：某种我们希望最小化的度量（损失）。下面是一个颜色示例，将图像像素与目标颜色（默认为一种浅青色）比较，并返回平均误差：
+
+```python
+def color_loss(images, target_color=(0.1, 0.9, 0.5)):
+    """Given a target color (R, G, B) return a loss for how far away on average
+    the images' pixels are from that color. Defaults to a light teal: (0.1, 0.9, 0.5)"""
+    target = (
+        torch.tensor(target_color).to(images.device) * 2 - 1
+    )  # Map target color to (-1, 1)
+    target = target[
+        None, :, None, None
+    ]  # Get shape right to work with the images (b, c, h, w)
+    error = torch.abs(
+        images - target
+    ).mean()  # Mean absolute difference between the image pixels and the target color
+    return error
+```
+
+接下来，我们修改采样循环，在每一步执行以下操作：
+- 创建 `requires_grad = True` 的新版本 x
+- 计算去噪版本（x0）
+- 将预测的 x0 送入损失函数
+- 求该损失函数相对于 x 的**梯度**
+- 在调度器步进之前，用此条件梯度修改 x，希望将 x 推向使引导函数损失更低的方向
+这里有两种变体可供探索。第一种在从 UNet 得到噪声预测**之后**才对 x 设置 `requires_grad`，更省显存（无需将梯度回传到扩散模型），但梯度不够准确。第二种先对 x 设置 `requires_grad`，再将其送入 UNet 并计算预测的 x0。
+
+```python
+# Variant 1: shortcut method
+
+# The guidance scale determines the strength of the effect
+guidance_loss_scale = 40  # Explore changing this to 5, or 100
+
+x = torch.randn(8, 3, 256, 256).to(device)
+
+for i, t in tqdm(enumerate(scheduler.timesteps)):
+
+    # Prepare the model input
+    model_input = scheduler.scale_model_input(x, t)
+
+    # predict the noise residual
+    with torch.no_grad():
+        noise_pred = image_pipe.unet(model_input, t)["sample"]
+
+    # Set x.requires_grad to True
+    x = x.detach().requires_grad_()
+
+    # Get the predicted x0
+    x0 = scheduler.step(noise_pred, t, x).pred_original_sample
+
+    # Calculate loss
+    loss = color_loss(x0) * guidance_loss_scale
+    if i % 10 == 0:
+        print(i, "loss:", loss.item())
+
+    # Get gradient
+    cond_grad = -torch.autograd.grad(loss, x)[0]
+
+    # Modify x based on this gradient
+    x = x.detach() + cond_grad
+
+    # Now step with scheduler
+    x = scheduler.step(noise_pred, t, x).prev_sample
+
+# View the output
+grid = torchvision.utils.make_grid(x, nrow=4)
+im = grid.permute(1, 2, 0).cpu().clip(-1, 1) * 0.5 + 0.5
+Image.fromarray(np.array(im * 255).astype(np.uint8))
+```
+
+第二种方案几乎需要两倍的 GPU 显存，尽管我们只生成四张图像而不是八张。看看能否发现差异，并思考为何这种方式更「准确」：
+
+```python
+# Variant 2: setting x.requires_grad before calculating the model predictions
+
+guidance_loss_scale = 40
+x = torch.randn(4, 3, 256, 256).to(device)
+
+for i, t in tqdm(enumerate(scheduler.timesteps)):
+
+    # Set requires_grad before the model forward pass
+    x = x.detach().requires_grad_()
+    model_input = scheduler.scale_model_input(x, t)
+
+    # predict (with grad this time)
+    noise_pred = image_pipe.unet(model_input, t)["sample"]
+
+    # Get the predicted x0:
+    x0 = scheduler.step(noise_pred, t, x).pred_original_sample
+
+    # Calculate loss
+    loss = color_loss(x0) * guidance_loss_scale
+    if i % 10 == 0:
+        print(i, "loss:", loss.item())
+
+    # Get gradient
+    cond_grad = -torch.autograd.grad(loss, x)[0]
+
+    # Modify x based on this gradient
+    x = x.detach() + cond_grad
+
+    # Now step with scheduler
+    x = scheduler.step(noise_pred, t, x).prev_sample
+
+
+grid = torchvision.utils.make_grid(x, nrow=4)
+im = grid.permute(1, 2, 0).cpu().clip(-1, 1) * 0.5 + 0.5
+Image.fromarray(np.array(im * 255).astype(np.uint8))
+```
+
+在第二种变体中，显存需求更高、效果不那么明显，你可能认为它更差。然而，输出可以说更接近模型训练时的图像类型，你始终可以提高引导尺度以获得更强效果。最终采用哪种方法，取决于实验中的最佳效果。
+
+```python
+# Exercise: pick your favourite colour and look up it's values in RGB space.
+# Edit the `color_loss()` line in the cell above to receive these new RGB values and examine the outputs - do they match what you expect?
+```
+
+## CLIP 引导
+引导向某种颜色只能提供有限的控制，但若能直接输入描述我们想要的文本呢？
+[CLIP](https://openai.com/blog/clip/) 是 OpenAI 创建的模型，允许我们将图像与文本标题进行比较。这非常强大，因为它能量化图像与提示词的匹配程度。由于该过程可微，我们可以将其用作损失函数来引导扩散模型！
+此处不深入细节。基本方法如下：
+- 嵌入文本提示词，得到 512 维的 CLIP 文本嵌入
+- 对于扩散模型过程的每一步：
+  - 对预测的去噪图像生成多个变体（多个变体可提供更干净的损失信号）
+  - 对每个变体，用 CLIP 嵌入图像，并与提示词的文本嵌入比较（使用称为「Great Circle Distance Squared」的度量）
+- 计算该损失相对于当前带噪 x 的梯度，并在用调度器更新 x 之前用此梯度修改 x。
+若要更深入理解 CLIP，可参阅[关于该主题的教程](https://johnowhitaker.github.io/tglcourse/clip.html)或[OpenCLIP 项目报告](https://wandb.ai/johnowhitaker/openclip-benchmarking/reports/Exploring-OpenCLIP--VmlldzoyOTIzNzIz)（我们用它来加载 CLIP 模型）。运行下一个单元格加载 CLIP 模型：
+
+```python
+# @markdown load a CLIP model and define the loss function
+import open_clip
+
+clip_model, _, preprocess = open_clip.create_model_and_transforms(
+    "ViT-B-32", pretrained="openai"
+)
+clip_model.to(device)
+
+# Transforms to resize and augment an image + normalize to match CLIP's training data
+tfms = torchvision.transforms.Compose(
+    [
+        torchvision.transforms.RandomResizedCrop(224),  # Random CROP each time
+        torchvision.transforms.RandomAffine(
+            5
+        ),  # One possible random augmentation: skews the image
+        torchvision.transforms.RandomHorizontalFlip(),  # You can add additional augmentations if you like
+        torchvision.transforms.Normalize(
+            mean=(0.48145466, 0.4578275, 0.40821073),
+            std=(0.26862954, 0.26130258, 0.27577711),
+        ),
+    ]
+)
+
+# And define a loss function that takes an image, embeds it and compares with
+# the text features of the prompt
+def clip_loss(image, text_features):
+    image_features = clip_model.encode_image(
+        tfms(image)
+    )  # Note: applies the above transforms
+    input_normed = torch.nn.functional.normalize(image_features.unsqueeze(1), dim=2)
+    embed_normed = torch.nn.functional.normalize(text_features.unsqueeze(0), dim=2)
+    dists = (
+        input_normed.sub(embed_normed).norm(dim=2).div(2).arcsin().pow(2).mul(2)
+    )  # Squared Great Circle Distance
+    return dists.mean()
+```
+
+定义损失函数后，引导采样循环与之前的示例类似，将 `color_loss()` 替换为新的基于 CLIP 的损失函数：
+
+```python
+# @markdown applying guidance using CLIP
+
+prompt = "Red Rose (still life), red flower painting"  # @param
+
+# Explore changing this
+guidance_scale = 8  # @param
+n_cuts = 4  # @param
+
+# More steps -> more time for the guidance to have an effect
+scheduler.set_timesteps(50)
+
+# We embed a prompt with CLIP as our target
+text = open_clip.tokenize([prompt]).to(device)
+with torch.no_grad(), torch.cuda.amp.autocast():
+    text_features = clip_model.encode_text(text)
+
+
+x = torch.randn(4, 3, 256, 256).to(
+    device
+)  # RAM usage is high, you may want only 1 image at a time
+
+for i, t in tqdm(enumerate(scheduler.timesteps)):
+
+    model_input = scheduler.scale_model_input(x, t)
+
+    # predict the noise residual
+    with torch.no_grad():
+        noise_pred = image_pipe.unet(model_input, t)["sample"]
+
+    cond_grad = 0
+
+    for cut in range(n_cuts):
+
+        # Set requires grad on x
+        x = x.detach().requires_grad_()
+
+        # Get the predicted x0:
+        x0 = scheduler.step(noise_pred, t, x).pred_original_sample
+
+        # Calculate loss
+        loss = clip_loss(x0, text_features) * guidance_scale
+
+        # Get gradient (scale by n_cuts since we want the average)
+        cond_grad -= torch.autograd.grad(loss, x)[0] / n_cuts
+
+    if i % 25 == 0:
+        print("Step:", i, ", Guidance loss:", loss.item())
+
+    # Modify x based on this gradient
+    alpha_bar = scheduler.alphas_cumprod[i]
+    x = (
+        x.detach() + cond_grad * alpha_bar.sqrt()
+    )  # Note the additional scaling factor here!
+
+    # Now step with scheduler
+    x = scheduler.step(noise_pred, t, x).prev_sample
+
+
+grid = torchvision.utils.make_grid(x.detach(), nrow=4)
+im = grid.permute(1, 2, 0).cpu().clip(-1, 1) * 0.5 + 0.5
+Image.fromarray(np.array(im * 255).astype(np.uint8))
+```
+
+这些看起来有点像玫瑰！并不完美，但若调整设置，可以用此方法得到令人满意的图像。
+
+若查看上方代码，会发现我将条件梯度乘以 `alpha_bar.sqrt()` 因子。有理论表明缩放这些梯度的「正确」方式，但实践中这也是可以实验的。对于某些引导类型，你可能希望大部分效果集中在早期步骤；对于其他类型（例如关注纹理的风格损失），你可能更希望它们只在生成过程后期生效。下方展示了一些可能的调度：
+
+```python
+# @markdown Plotting some possible schedules:
+plt.plot([1 for a in scheduler.alphas_cumprod], label="no scaling")
+plt.plot([a for a in scheduler.alphas_cumprod], label="alpha_bar")
+plt.plot([a.sqrt() for a in scheduler.alphas_cumprod], label="alpha_bar.sqrt()")
+plt.plot(
+    [(1 - a).sqrt() for a in scheduler.alphas_cumprod], label="(1-alpha_bar).sqrt()"
+)
+plt.legend()
+plt.title("Possible guidance scaling schedules");
+```
+
+尝试不同的调度、引导尺度以及你能想到的任何技巧（将梯度裁剪到某个范围内是常见的修改），看看能取得多好效果！也请尝试替换其他模型。例如开头加载的人脸模型——能否可靠地引导它生成男性人脸？若将 CLIP 引导与之前使用的颜色损失结合会怎样？等等。
+若查看[实践中 CLIP 引导扩散的代码](https://huggingface.co/spaces/EleutherAI/clip-guided-diffusion/blob/main/app.py)，会发现更复杂的方法，包含更好的随机裁剪类和许多损失函数调整以获得更好性能。在文本条件扩散模型出现之前，这是最好的文生图系统！我们这里的小玩具版本还有很大改进空间，但抓住了核心思想：借助引导以及 CLIP 的强大能力，我们可以为无条件扩散模型添加文本控制 🎨。
+
+## 将自定义采样循环作为 Gradio 演示分享
+也许你找到了有趣的引导损失，现在想与世界分享你的微调模型和这套自定义采样策略……
+
+那就来看看 [Gradio](https://gradio.app/)。Gradio 是一款免费开源工具，让用户通过简单的 Web 界面轻松创建和分享交互式机器学习模型。借助 Gradio，用户可以为机器学习模型构建自定义界面，然后通过唯一 URL 与他人分享。它还与 🤗 Spaces 集成，便于托管演示并分享给他人。
+我们将核心逻辑放在一个函数中，接收若干输入并输出图像。然后可以用简单界面包装，让用户指定一些参数（作为输入传给主生成函数）。有许多[组件](https://gradio.app/docs/#components)可用——本示例使用滑块设置引导尺度，用颜色选择器定义目标颜色。
+
+```python
+%pip install -q gradio # Install the library
+```
+
+```python
+import gradio as gr
+from PIL import Image, ImageColor
+
+
+# The function that does the hard work
+def generate(color, guidance_loss_scale):
+    target_color = ImageColor.getcolor(color, "RGB")  # Target color as RGB
+    target_color = [a / 255 for a in target_color]  # Rescale from (0, 255) to (0, 1)
+    x = torch.randn(1, 3, 256, 256).to(device)
+    for i, t in tqdm(enumerate(scheduler.timesteps)):
+        model_input = scheduler.scale_model_input(x, t)
+        with torch.no_grad():
+            noise_pred = image_pipe.unet(model_input, t)["sample"]
+        x = x.detach().requires_grad_()
+        x0 = scheduler.step(noise_pred, t, x).pred_original_sample
+        loss = color_loss(x0, target_color) * guidance_loss_scale
+        cond_grad = -torch.autograd.grad(loss, x)[0]
+        x = x.detach() + cond_grad
+        x = scheduler.step(noise_pred, t, x).prev_sample
+    grid = torchvision.utils.make_grid(x, nrow=4)
+    im = grid.permute(1, 2, 0).cpu().clip(-1, 1) * 0.5 + 0.5
+    im = Image.fromarray(np.array(im * 255).astype(np.uint8))
+    im.save("test.jpeg")
+    return im
+
+
+# See the gradio docs for the types of inputs and outputs available
+inputs = [
+    gr.ColorPicker(label="color", value="55FFAA"),  # Add any inputs you need here
+    gr.Slider(label="guidance_scale", minimum=0, maximum=30, value=3),
+]
+outputs = gr.Image(label="result")
+
+# And the minimal interface
+demo = gr.Interface(
+    fn=generate,
+    inputs=inputs,
+    outputs=outputs,
+    examples=[
+        ["#BB2266", 3],
+        ["#44CCAA", 5],  # You can provide some example inputs to get people started
+    ],
+)
+demo.launch(debug=True)  # debug=True allows you to see errors and output in Colab
+```
+
+可以构建更复杂的界面，带有精美样式和丰富的输入选项，但本演示尽量保持简单。
+🤗 Spaces 上的演示默认在 CPU 上运行，因此先在 Colab（如上）中原型化界面再迁移过去是个好主意。准备分享演示时，你需要创建一个 Space，设置列出代码所用库的 `requirements.txt` 文件，然后将所有代码放在定义相关函数和界面的 `app.py` 文件中。
+
+![Screenshot from 2022-12-11 10-28-26.png](https://raw.githubusercontent.com/HaoyuLi-Nova/Diffusion-Zero-to-Hero/master/images/unit2/gradio_demo.png)
+
+幸运的是，还有「复制（Duplicate）」Space 的选项。你可以访问我的演示 Space [这里](https://huggingface.co/spaces/johnowhitaker/color-guided-wikiart-diffusion)（见上图），点击「Duplicate this Space」获得模板，然后修改以使用你自己的模型和引导函数。
+在设置中，你可以将 Space 配置为在更强大的硬件上运行（按小时计费）。做出了很棒的东西想在更好的硬件上分享但没有预算？通过 Discord 告诉我们，看看能否提供帮助！
+
+## 总结与下一步
+本笔记本涵盖了很多内容！让我们回顾核心思想：
+- 加载现有模型并用不同调度器采样相对容易
+- 微调看起来与从零训练一样，只是从现有模型出发，希望更快获得更好结果
+- 要在高分辨率图像上微调大模型，可以使用梯度累积等技巧绕过批量大小限制
+- 记录样本图像对微调很重要，损失曲线可能信息量不大
+- 引导允许我们拿无条件模型，根据某种引导/损失函数操控生成过程：每一步求损失相对于带噪图像 x 的梯度，在进入下一时间步之前根据该梯度更新 x
+- 用 CLIP 引导可以用文本控制无条件模型！
+要将所学付诸实践，可以采取以下具体步骤：
+- 微调你自己的模型并推送到 Hub。这包括选择起点（例如在[人脸](https://huggingface.co/google/ddpm-celebahq-256)、[卧室](https://huggingface.co/fusing/ddpm-lsun-bedroom)、[猫](https://huggingface.co/fusing/ddpm-lsun-cat)或[上方的 wikiart 示例](https://huggingface.co/johnowhitaker/sd-class-wikiart-from-bedrooms)上训练的模型）和数据集（或许是这些[动物脸](https://huggingface.co/datasets/huggan/AFHQv2)或你自己的图像），然后运行本笔记本中的代码或示例脚本（下方演示用法）。
+- 使用微调模型探索引导，使用示例引导函数（`color_loss` 或 CLIP）或发明你自己的。
+- 使用 Gradio 分享基于此的演示，修改[示例 Space](https://huggingface.co/spaces/johnowhitaker/color-guided-wikiart-diffusion)以使用你自己的模型，或创建功能更丰富的自定义版本。
+我们期待在 Discord、Twitter 及其他地方看到你的成果 🤗！

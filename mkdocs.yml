@@ -50,12 +50,26 @@ nav:
   - How to Learn:
       - Learning Path (EN): how-to-learn-diffusion-models.md
       - 学习路线 (中文): learning-path.md
-  - Concepts:
-      - DDPM Explained: ddpm-explained.md
-      - DDIM Explained: ddim-explained.md
-      - Stable Diffusion Explained: stable-diffusion-explained.md
-      - Classifier-Free Guidance: classifier-free-guidance-explained.md
-      - LoRA and ControlNet: lora-controlnet.md
+  - Course:
+      - Unit 0 课程准备: unit0/index.md
+      - Unit 1 扩散模型入门:
+          - 单元导读: unit1/index.md
+          - Diffusers 入门: unit1/01-introduction-to-diffusers.md
+          - 从零实现扩散模型: unit1/02-diffusion-models-from-scratch.md
+      - Unit 2 微调与条件生成:
+          - 单元导读: unit2/index.md
+          - 微调与引导: unit2/01-finetuning-and-guidance.md
+          - 类别条件扩散模型: unit2/02-class-conditioned-diffusion-model.md
+      - Unit 3 Stable Diffusion:
+          - 单元导读: unit3/index.md
+          - Stable Diffusion 入门: unit3/stable-diffusion-introduction.md
+      - Unit 4 进阶方向:
+          - 单元导读: unit4/index.md
+          - DDIM 反演: unit4/01-ddim-inversion.md
+          - 音频扩散: unit4/02-diffusion-for-audio.md
+      - DreamBooth:
+          - 项目导读: hackathon/index.md
+          - DreamBooth Notebook: hackathon/dreambooth.md
   - Modern Roadmap: modern-diffusion-roadmap.md
   - Guides:
       - Glossary: glossary.md

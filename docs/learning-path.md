@@ -12,15 +12,15 @@
 | 3. Stable Diffusion | unit3 | 2-4 天 | 能拆解 text-to-image、img2img、inpainting |
 | 4. 个性化微调 | hackathon | 2-5 天 | 能训练 DreamBooth 或理解其局限 |
 | 5. 进阶扩展 | unit4 | 2-4 天 | 理解 DDIM inversion、音频扩散、蒸馏与新架构 |
-| 6. 现代主题 | docs/modern-diffusion-roadmap.md | 持续 | 跟进 LoRA、ControlNet、SDXL、视频生成 |
+| 6. 现代主题 | [modern-diffusion-roadmap.md](modern-diffusion-roadmap.md) | 持续 | 跟进 LoRA、ControlNet、SDXL、视频生成 |
 
 ## 如果你是初学者
 
-1. 先读 [unit0](../unit0/README.md)，确认前置知识。
-2. 跑通 [unit1/01_introduction_to_diffusers.ipynb](../unit1/01_introduction_to_diffusers.ipynb)，重点理解 scheduler 如何加噪与去噪。
-3. 再读 [unit1/02_diffusion_models_from_scratch.ipynb](../unit1/02_diffusion_models_from_scratch.ipynb)，不要纠结模型效果，关注训练循环。
-4. 学 [unit2](../unit2/README.md) 时先理解「模型预测什么」和「guidance 如何改变采样方向」。
-5. 进入 [unit3](../unit3/README.md) 前，确保你能解释 UNet、VAE、文本编码器分别负责什么。
+1. 先读 [unit0](unit0/index.md)，确认前置知识。
+2. 跑通 [unit1/01_introduction_to_diffusers.ipynb](unit1/01-introduction-to-diffusers.md)，重点理解 scheduler 如何加噪与去噪。
+3. 再读 [unit1/02_diffusion_models_from_scratch.ipynb](unit1/02-diffusion-models-from-scratch.md)，不要纠结模型效果，关注训练循环。
+4. 学 [unit2](unit2/index.md) 时先理解「模型预测什么」和「guidance 如何改变采样方向」。
+5. 进入 [unit3](unit3/index.md) 前，确保你能解释 UNet、VAE、文本编码器分别负责什么。
 
 ## 如果你主要关心图像生成应用
 
