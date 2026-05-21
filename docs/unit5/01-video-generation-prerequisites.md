@@ -4,6 +4,21 @@
 
 简短答案是：视频生成不是把图像生成重复 `T` 次。它需要同时建模空间结构、时间连续性、主体一致性和运动规律。
 
+本单元不是纯概念阅读。读完本节后，你可以运行：
+
+```powershell
+python unit5\toy_video_diffusion.py `
+  --model framewise `
+  --image-size 32 `
+  --frames 8 `
+  --batch-size 16 `
+  --max-steps 400 `
+  --sample-every 100 `
+  --output-dir unit5_outputs\framewise
+```
+
+它会训练一个逐帧视频扩散 baseline。后续再运行 `--model temporal`，对比加入时间卷积后的视频稳定性。
+
 ## 从图像扩散到视频扩散
 
 在图像扩散中，模型学习从噪声恢复图像。以 Stable Diffusion 为例，扩散通常发生在 latent space 中：
@@ -178,7 +193,7 @@ Temporal attention 让同一空间位置或同一 token 在不同帧之间交换
 
 更大规模的视频生成模型常使用 Transformer 或 DiT 类结构，把视频表示为时空 token 序列。它的扩展性强，但对数据、算力和工程实现要求更高。
 
-Unit 5 第一阶段不会实现 Video Transformer，但会在 toy diffusion 中保留相同的概念：视频可以被看成一组时空 token，需要跨时间交换信息。
+Unit 5 第一阶段不会实现 Video Transformer，但已经提供 `toy_video_diffusion.py`，用可运行的 framewise baseline 和 temporal convolution baseline 保留相同的核心概念：视频可以被看成一组时空 token，需要跨时间交换信息。
 
 ## 入门时应该先学什么
 

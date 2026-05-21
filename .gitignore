@@ -24,6 +24,7 @@ checkpoint-*/
 checkpoints/
 outputs/
 output/
+unit5_outputs/
 runs/
 wandb/
 logs/

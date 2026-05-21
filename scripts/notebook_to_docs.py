@@ -165,6 +165,8 @@ def copy_markdown(src_rel: str, dst_rel: str) -> None:
 def copy_static_files() -> None:
     source = read_text(ROOT / "unit2" / "finetune_model.py")
     write_text(DOCS / "unit2" / "finetune_model.py", source)
+    toy_video = read_text(ROOT / "unit5" / "toy_video_diffusion.py")
+    write_text(DOCS / "unit5" / "toy_video_diffusion.py", toy_video)
 
 
 def main() -> None:
