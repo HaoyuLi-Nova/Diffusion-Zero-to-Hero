@@ -32,7 +32,14 @@ README_PAGES = [
     ("unit2/README.md", "unit2/index.md"),
     ("unit3/README.md", "unit3/index.md"),
     ("unit4/README.md", "unit4/index.md"),
+    ("unit5/README.md", "unit5/index.md"),
     ("hackathon/README.md", "hackathon/index.md"),
+]
+
+MARKDOWN_PAGES = [
+    ("unit5/01_video_generation_prerequisites.md", "unit5/01-video-generation-prerequisites.md"),
+    ("unit5/02_video_tensors_and_datasets.md", "unit5/02-video-tensors-and-datasets.md"),
+    ("unit5/03_toy_video_diffusion_from_scratch.md", "unit5/03-toy-video-diffusion-from-scratch.md"),
 ]
 
 LINK_REPLACEMENTS = {
@@ -41,6 +48,7 @@ LINK_REPLACEMENTS = {
     "../unit2/README.md": "../unit2/index.md",
     "../unit3/README.md": "../unit3/index.md",
     "../unit4/README.md": "../unit4/index.md",
+    "../unit5/README.md": "../unit5/index.md",
     "../hackathon/README.md": "../hackathon/index.md",
     "../docs/learning-path.md": "../learning-path.md",
     "../docs/modern-diffusion-roadmap.md": "../modern-diffusion-roadmap.md",
@@ -54,6 +62,9 @@ LINK_REPLACEMENTS = {
     "01_ddim_inversion.ipynb": "01-ddim-inversion.md",
     "02_diffusion_for_audio.ipynb": "02-diffusion-for-audio.md",
     "dreambooth.ipynb": "dreambooth.md",
+    "01_video_generation_prerequisites.md": "01-video-generation-prerequisites.md",
+    "02_video_tensors_and_datasets.md": "02-video-tensors-and-datasets.md",
+    "03_toy_video_diffusion_from_scratch.md": "03-toy-video-diffusion-from-scratch.md",
 }
 
 
@@ -145,6 +156,12 @@ def copy_readme(src_rel: str, dst_rel: str) -> None:
     write_text(DOCS / dst_rel, text)
 
 
+def copy_markdown(src_rel: str, dst_rel: str) -> None:
+    text = read_text(ROOT / src_rel)
+    text = normalise_markdown(text)
+    write_text(DOCS / dst_rel, text)
+
+
 def copy_static_files() -> None:
     source = read_text(ROOT / "unit2" / "finetune_model.py")
     write_text(DOCS / "unit2" / "finetune_model.py", source)
@@ -153,6 +170,8 @@ def copy_static_files() -> None:
 def main() -> None:
     for src, dst in README_PAGES:
         copy_readme(src, dst)
+    for src, dst in MARKDOWN_PAGES:
+        copy_markdown(src, dst)
     for src, dst in NOTEBOOKS:
         convert_notebook(src, dst)
     copy_static_files()

@@ -75,6 +75,15 @@
 | Rectified Flow | Rectified Flow | 通过更直的传输路径提升生成效率的一类方法 |
 | 视频扩散 | Video Diffusion | 生成帧序列，并关注时间一致性与运动建模 |
 | 时序一致性 | Temporal Consistency | 视频中相邻帧内容、结构和风格保持连贯 |
+| 帧 | Frame | 视频中的单张图像 |
+| 帧率 | FPS | 每秒播放或采样的帧数 |
+| 视频片段 | Clip | 从长视频中截取的一段固定长度帧序列 |
+| 图生视频 | Image-to-Video, I2V | 以一张或多张图像为条件生成视频 |
+| 文生视频 | Text-to-Video, T2V | 以文本 prompt 为条件生成视频 |
+| 闪烁 | Flickering | 帧间纹理、颜色、边缘或背景不稳定 |
+| 运动模块 | Motion Module | 在图像生成模型上增加的时间建模模块 |
+| 时间注意力 | Temporal Attention | 让不同帧之间交换信息的注意力机制 |
+| 相机运动 | Camera Motion | 推近、拉远、平移、旋转、环绕等镜头运动 |
 
 ## 常见缩写
 
@@ -88,3 +97,5 @@
 | LoRA | Low-Rank Adaptation |
 | PEFT | Parameter-Efficient Fine-Tuning |
 | SVD | Stable Video Diffusion |
+| I2V | Image-to-Video |
+| T2V | Text-to-Video |

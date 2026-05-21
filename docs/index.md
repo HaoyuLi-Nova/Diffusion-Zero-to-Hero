@@ -1,6 +1,6 @@
 # Diffusion Models from Zero to Hero
 
-这是一个面向中文读者的扩散模型实战课程，内容从基础 DDPM 与 Diffusers 入门开始，逐步进入微调、引导、条件生成、Stable Diffusion、DDIM 反演、音频扩散和 DreamBooth 个性化微调。
+这是一个面向中文读者的扩散模型实战课程，内容从基础 DDPM 与 Diffusers 入门开始，逐步进入微调、引导、条件生成、Stable Diffusion、DDIM 反演、音频扩散、视频生成和 DreamBooth 个性化微调。
 
 文档站点的目标是把仓库中的 Jupyter Notebook 转成更适合 GitHub Pages 阅读的课程页面。每个页面都保留了原 notebook 的讲解顺序与代码单元，读者可以先在网页上通读概念，再回到 notebook 中动手运行。
 
@@ -13,6 +13,7 @@
 | Unit 2 | [微调与引导](unit2/01-finetuning-and-guidance.md)、[类别条件扩散模型](unit2/02-class-conditioned-diffusion-model.md) | 学会微调、guidance、CLIP guidance 与 class conditioning |
 | Unit 3 | [Stable Diffusion 入门](unit3/stable-diffusion-introduction.md) | 拆解 VAE、text encoder、UNet、scheduler 与常见 pipeline |
 | Unit 4 | [DDIM 反演](unit4/01-ddim-inversion.md)、[音频扩散](unit4/02-diffusion-for-audio.md) | 学习图像编辑、反演、频谱图音频生成与进阶方向 |
+| Unit 5 | [视频生成从零开始](unit5/index.md) | 理解视频张量、时序一致性、toy video diffusion 与后续 I2V/T2V 路线 |
 | Hackathon | [DreamBooth](hackathon/dreambooth.md) | 用少量图像微调 Stable Diffusion，完成个性化生成练习 |
 
 ## 运行方式

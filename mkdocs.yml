@@ -67,6 +67,11 @@ nav:
           - 单元导读: unit4/index.md
           - DDIM 反演: unit4/01-ddim-inversion.md
           - 音频扩散: unit4/02-diffusion-for-audio.md
+      - Unit 5 视频生成从零开始:
+          - 单元导读: unit5/index.md
+          - 视频生成前置知识: unit5/01-video-generation-prerequisites.md
+          - 视频张量与数据集: unit5/02-video-tensors-and-datasets.md
+          - Toy Video Diffusion: unit5/03-toy-video-diffusion-from-scratch.md
       - DreamBooth:
           - 项目导读: hackathon/index.md
           - DreamBooth Notebook: hackathon/dreambooth.md

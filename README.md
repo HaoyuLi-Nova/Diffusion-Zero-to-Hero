@@ -18,7 +18,8 @@ If you are new to diffusion models, follow this path:
 3. Learn training objectives, schedulers, and sampling.
 4. Move to guidance, conditioning, and fine-tuning in [Unit 2](unit2/README.md).
 5. Study Stable Diffusion components: VAE, U-Net, CLIP text encoder, and cross-attention in [Unit 3](unit3/README.md).
-6. Continue with DDIM inversion, audio diffusion, LoRA, ControlNet, SDXL, DiT, Flow Matching, and video generation in [Unit 4](unit4/README.md) and the [modern roadmap](docs/modern-diffusion-roadmap.md).
+6. Continue with DDIM inversion and audio diffusion in [Unit 4](unit4/README.md).
+7. Learn video generation from tensors and toy diffusion in [Unit 5](unit5/README.md), then continue to LoRA, ControlNet, SDXL, DiT, Flow Matching, and modern video models in the [modern roadmap](docs/modern-diffusion-roadmap.md).
 
 For a detailed English roadmap, see [How to Learn Diffusion Models](docs/how-to-learn-diffusion-models.md). For Chinese learners, see [学习路线](docs/learning-path.md).
 
@@ -37,6 +38,7 @@ For a detailed English roadmap, see [How to Learn Diffusion Models](docs/how-to-
 - 使用 guidance、conditioning、CFG 控制生成结果
 - 理解 Stable Diffusion 的 VAE、UNet、CLIP 文本编码器与 cross-attention
 - 通过 DDIM inversion、DreamBooth、音频频谱图等实践扩展能力
+- 从视频张量、时序一致性与 toy video diffusion 入门视频生成
 - 了解 LoRA、ControlNet、SDXL、DiT、Flow Matching、视频生成等现代方向
 
 ## 快速开始
@@ -66,6 +68,7 @@ huggingface-cli login
 | 微调与控制 | [unit2](unit2/README.md) | 学会微调、guidance 与条件生成 |
 | Stable Diffusion | [unit3](unit3/README.md) | 拆解文生图模型的核心组件与常见 pipeline |
 | 进阶方向 | [unit4](unit4/README.md) | 了解蒸馏、图像编辑、视频、音频与新架构 |
+| 视频生成 | [unit5](unit5/README.md) | 从视频张量、数据集和 toy video diffusion 开始学习时序建模 |
 | 个性化项目 | [hackathon](hackathon/README.md) | 使用 DreamBooth 学习少样本个性化微调 |
 | 现代路线 | [docs/modern-diffusion-roadmap.md](docs/modern-diffusion-roadmap.md) | 衔接 LoRA、ControlNet、SDXL、视频生成等后续主题 |
 
@@ -79,6 +82,7 @@ huggingface-cli login
 | [单元 2：微调、引导与条件生成](unit2/README.md) | [微调与引导](unit2/01_finetuning_and_guidance.ipynb)、[类别条件示例](unit2/02_class_conditioned_diffusion_model_example.ipynb) | 微调、CLIP guidance、class conditioning |
 | [单元 3：Stable Diffusion](unit3/README.md) | [Stable Diffusion 入门](unit3/stable_diffusion_introduction.ipynb) | 文生图、img2img、inpainting、depth-to-image |
 | [单元 4：扩散模型进阶](unit4/README.md) | [DDIM 反演](unit4/01_ddim_inversion.ipynb)、[音频扩散](unit4/02_diffusion_for_audio.ipynb) | 图像编辑、音频频谱图、蒸馏、视频与新架构 |
+| [单元 5：视频生成从零开始](unit5/README.md) | Markdown 教程 | 视频张量、帧采样、时序一致性、toy video diffusion |
 | [DreamBooth 练习项目](hackathon/README.md) | [DreamBooth](hackathon/dreambooth.ipynb) | 少样本个性化微调 |
 
 ## 运行环境建议
@@ -88,6 +92,7 @@ huggingface-cli login
 | unit1 小模型训练 | 4-8 GB | 可降低 batch size 与 image size |
 | unit2 微调与 CLIP guidance | 8-12 GB | 采样与日志记录会增加显存占用 |
 | unit3 Stable Diffusion 推理 | 8-12 GB | 可使用 fp16、attention slicing 或更小分辨率 |
+| unit5 toy video diffusion | 4-8 GB | 建议先用 32-64px、8-16 帧短视频调试 |
 | DreamBooth | 14-24 GB | 建议优先学习 LoRA 等低显存方案后再做全量微调 |
 | unit4 音频微调 | 8-16 GB | 取决于音频切片长度与 batch size |
 

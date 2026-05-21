@@ -41,8 +41,16 @@ Focus on the component roles:
 - [DDIM 反演](unit4/01-ddim-inversion.md) explains how inversion supports image editing.
 - [音频扩散](unit4/02-diffusion-for-audio.md) treats spectrograms as images and converts the result back to audio.
 
-After this, use [现代扩散模型路线图](modern-diffusion-roadmap.md) to continue toward LoRA, ControlNet, SDXL, DiT, Flow Matching and video generation.
+## 5. Learn Video Generation from First Principles
 
-## 5. Build a Personalization Project
+Use [Unit 5](unit5/index.md) after you understand latent diffusion. Start with video tensors and toy video diffusion before running large video models.
+
+- [视频生成前置知识](unit5/01-video-generation-prerequisites.md) explains why video is not independent frame generation.
+- [视频张量与数据集](unit5/02-video-tensors-and-datasets.md) covers frame sampling, tensor layout, normalization and visualization.
+- [Toy Video Diffusion](unit5/03-toy-video-diffusion-from-scratch.md) designs the first small experiment for temporal modeling.
+
+After this, use [现代扩散模型路线图](modern-diffusion-roadmap.md) to continue toward LoRA, ControlNet, SDXL, DiT, Flow Matching and modern video generation.
+
+## 6. Build a Personalization Project
 
 Use [DreamBooth](hackathon/dreambooth.md) as a project-style exercise. Keep a small, clean image set, record training parameters, and compare both successful and failed generations. In real projects, consider LoRA-style DreamBooth after understanding the full fine-tuning version.

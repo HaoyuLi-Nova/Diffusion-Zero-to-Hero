@@ -12,7 +12,8 @@
 | 3. Stable Diffusion | unit3 | 2-4 天 | 能拆解 text-to-image、img2img、inpainting |
 | 4. 个性化微调 | hackathon | 2-5 天 | 能训练 DreamBooth 或理解其局限 |
 | 5. 进阶扩展 | unit4 | 2-4 天 | 理解 DDIM inversion、音频扩散、蒸馏与新架构 |
-| 6. 现代主题 | [modern-diffusion-roadmap.md](modern-diffusion-roadmap.md) | 持续 | 跟进 LoRA、ControlNet、SDXL、视频生成 |
+| 6. 视频生成 | [unit5](unit5/index.md) | 2-5 天 | 理解视频张量、时序一致性与 toy video diffusion |
+| 7. 现代主题 | [modern-diffusion-roadmap.md](modern-diffusion-roadmap.md) | 持续 | 跟进 LoRA、ControlNet、SDXL、视频生成 |
 
 ## 如果你是初学者
 
@@ -58,11 +59,12 @@
 
 ## 如果你主要关心视频生成
 
-本仓库当前视频部分以 unit4 理论导读为主，尚未加入完整视频生成 notebook。建议先完成：
+本仓库的视频生成主线从 [unit5](unit5/index.md) 开始。建议先完成：
 
 1. unit3：理解 Stable Diffusion 的潜空间与文本条件。
 2. unit4：阅读视频生成概览。
-3. modern roadmap：学习 AnimateDiff、Stable Video Diffusion、CogVideoX、时序一致性与显存优化。
+3. unit5：学习视频张量、数据集、时序一致性与 toy video diffusion。
+4. modern roadmap：学习 AnimateDiff、Stable Video Diffusion、CogVideoX、时序一致性与显存优化。
 
 视频生成比图像生成更吃显存与存储，建议从短视频、低分辨率、小 batch 开始。
 
@@ -72,6 +74,7 @@
 - unit2：guidance 与 conditioning 有什么区别？什么时候需要微调？
 - unit3：Stable Diffusion 为什么在 latent 中扩散？CFG scale 为什么会影响提示词遵循度？
 - unit4：DDIM inversion 如何支持图像编辑？音频为什么可以转成频谱图来生成？
+- unit5：视频为什么不能逐帧独立生成？`[B, C, T, H, W]` 中的时间维如何改变模型设计？
 - hackathon：DreamBooth 为什么容易过拟合？低显存时有哪些替代方案？
 
 ## 学习节奏建议
